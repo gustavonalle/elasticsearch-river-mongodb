@@ -74,6 +74,12 @@
 			<groupId>org.testng</groupId>
 			<artifactId>testng</artifactId>
 			<version>6.5.1</version>
+      <exclusions>
+        <exclusion>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+        </exclusion>
+      </exclusions>
 			<scope>test</scope>
 		</dependency>
 
@@ -131,27 +137,6 @@
 
 		<plugins>
 			<plugin>
-				<groupId>com.github.github</groupId>
-				<artifactId>downloads-maven-plugin</artifactId>
-				<version>0.4</version>
-				<configuration>
-					<description>${project.name} download for ${project.version}</description>
-					<override>true</override>
-					<includeAttached>true</includeAttached>
-					<includes>
-						<include>releases/*.zip</include>
-					</includes>
-				</configuration>
-				<executions>
-					<execution>
-						<goals>
-							<goal>upload</goal>
-						</goals>
-						<phase>install</phase>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>2.3.2</version>
@@ -165,6 +150,12 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.11</version>
 				<configuration>
+          <systemPropertyVariables>
+            <http.proxyPort>80</http.proxyPort>
+            <https.proxyPort>80</https.proxyPort>
+            <http.proxyHost>10.1.51.10</http.proxyHost>
+            <https.proxyHost>10.1.51.10</https.proxyHost>
+          </systemPropertyVariables>
 					<includes>
 						<include>**/*Test.java</include>
 					</includes>

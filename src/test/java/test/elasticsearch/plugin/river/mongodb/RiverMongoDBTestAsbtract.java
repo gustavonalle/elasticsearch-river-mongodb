@@ -51,7 +51,7 @@ public abstract class RiverMongoDBTestAsbtract {
     private static final String MAPPER_ATTACHMENT_PLUGIN_NAME = "elasticsearch/elasticsearch-mapper-attachments/1.6.0";
     private static boolean USE_DYNAMIC_PORTS = false;
     //Version.Main.V2_2
-    private static final String MONGO_VERSION = "2.2.1";
+    private static final String MONGO_VERSION = "2.0.4";
 	public static final String ADMIN_DATABASE_NAME = "admin";
 	public static final String LOCAL_DATABASE_NAME = "local";
 	public static final String REPLICA_SET_NAME = "rep1";

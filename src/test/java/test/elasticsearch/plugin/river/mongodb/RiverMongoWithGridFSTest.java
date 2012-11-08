@@ -66,7 +66,7 @@ public class RiverMongoWithGridFSTest extends RiverMongoDBTestAsbtract {
 		mongoDB.dropDatabase();
 	}
 
-	@Test
+	@Test(enabled = false)
 	public void testImportAttachment() throws Exception {
 		logger.debug("*** testImportAttachment ***");
 		byte[] content = copyToBytesFromClasspath("/test/elasticsearch/plugin/river/mongodb/test-attachment.html");
