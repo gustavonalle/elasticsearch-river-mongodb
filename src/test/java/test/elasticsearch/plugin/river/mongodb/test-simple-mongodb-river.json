@@ -23,5 +23,13 @@
 	index: {
 		name: "personindex",
 		throttle_size: 2000
-	}
+	},
+	"field_mappings": [{
+	    "generate": "suggest",
+	    "from": ["upl","acl","dn"]
+	},
+	{
+       "generate": "ranking",
+       "from": "r"
+	}]
 }

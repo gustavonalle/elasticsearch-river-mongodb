@@ -58,6 +58,8 @@ import org.elasticsearch.river.River;
 import org.elasticsearch.river.RiverIndexName;
 import org.elasticsearch.river.RiverName;
 import org.elasticsearch.river.RiverSettings;
+import org.elasticsearch.river.mongodb.util.FieldMapper;
+import org.elasticsearch.river.mongodb.util.FieldMapperConfig;
 import org.elasticsearch.river.mongodb.util.GridFSHelper;
 import org.elasticsearch.script.ScriptService;
 
@@ -86,6 +88,7 @@ import com.mongodb.util.JSON;
 public class MongoDBRiver extends AbstractRiverComponent implements River {
 
 	public final static String RIVER_TYPE = "mongodb";
+  public final static String FIELD_MAPPING = "field_mappings";
 	public final static String ROOT_NAME = RIVER_TYPE;
 	public final static String DB_FIELD = "db";
 	public final static String SERVERS_FIELD = "servers";
@@ -146,11 +149,12 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 	protected final String typeName;
 	protected final int bulkSize;
 	protected final TimeValue bulkTimeout;
-	protected final int throttleSize;
+  protected FieldMapper fieldMapper;
 
-	protected Thread tailerThread;
-	protected Thread indexerThread;
-	protected volatile boolean active = true;
+	protected final int throttleSize;
+  protected Thread tailerThread;
+  protected Thread indexerThread;
+  protected volatile boolean active = true;
 
 	// private final TransferQueue<Map<String, Object>> stream = new
 	// LinkedTransferQueue<Map<String, Object>>();
@@ -335,6 +339,14 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 			bulkTimeout = TimeValue.timeValueMillis(10);
 			throttleSize = bulkSize * 5;
 		}
+
+    if(settings.settings().containsKey(FIELD_MAPPING))  {
+     ArrayList<Map<String, Object>> fields = (ArrayList<Map<String, Object>>) settings.settings().get(FIELD_MAPPING);
+       fieldMapper = new FieldMapper(new FieldMapperConfig(fields));
+    } else {
+       fieldMapper = new FieldMapper(new FieldMapperConfig());
+    }
+
 		if (throttleSize == -1) {
 			stream = new LinkedTransferQueue<Map<String, Object>>();
 		} else {
@@ -349,7 +361,7 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 					server.getHost(), server.getPort());
 		}
 		logger.info(
-				"starting mongodb stream. options: secondaryreadpreference [{}], throttlesize [{}], gridfs [{}], filter [{}], db [{}], indexing to [{}]/[{}]",
+				"starting mongodb stream. options: secondaryreadpreference [{}], throttlesize [{}], gridfs [{}], filter [{}], db [{}], indexing from [{}]/[{}]",
 				mongoSecondaryReadPreference, throttleSize, mongoGridFS,
 				mongoFilter, mongoDb, indexName, typeName);
 		try {
@@ -361,11 +373,11 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 			} else if (ExceptionsHelper.unwrapCause(e) instanceof ClusterBlockException) {
 				// ok, not recovered yet..., lets start indexing and hope we
 				// recover by the first bulk
-				// TODO: a smarter logic can be to register for cluster event
+				// TODO: a smarter logic can be from register for cluster event
 				// listener here, and only start sampling when the
 				// block is removed...
 			} else {
-				logger.warn("failed to create index [{}], disabling river...",
+				logger.warn("failed from create index [{}], disabling river...",
 						e, indexName);
 				return;
 			}
@@ -377,7 +389,7 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 						.setType(typeName).setSource(getGridFSMapping())
 						.execute().actionGet();
 			} catch (Exception e) {
-				logger.warn("Failed to set explicit mapping (attachment): {}",
+				logger.warn("Failed from set explicit mapping (attachment): {}",
 						e);
 				if (logger.isDebugEnabled()) {
 					logger.debug("Set explicit attachment mapping.", e);
@@ -424,10 +436,11 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 					BSONTimestamp lastTimestamp = null;
 					BulkRequestBuilder bulk = client.prepareBulk();
 
-					// 1. Attempt to fill as much of the bulk request as
+					// 1. Attempt from fill as much of the bulk request as
 					// possible
-					Map<String, Object> data = stream.take();
-					lastTimestamp = updateBulkRequest(bulk, data);
+					Map<String, Object> mongodata = stream.take();
+          Map<String, Object> data = fieldMapper.map(mongodata);
+          lastTimestamp = updateBulkRequest(bulk, data);
 					while ((data = stream.poll(bulkTimeout.millis(),
 							MILLISECONDS)) != null) {
 						lastTimestamp = updateBulkRequest(bulk, data);
@@ -446,12 +459,12 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 					try {
 						BulkResponse response = bulk.execute().actionGet();
 						if (response.hasFailures()) {
-							// TODO write to exception queue?
-							logger.warn("failed to execute"
+							// TODO write from exception queue?
+							logger.warn("failed from execute"
 									+ response.buildFailureMessage());
 						}
 					} catch (Exception e) {
-						logger.warn("failed to execute bulk", e);
+						logger.warn("failed from execute bulk", e);
 					}
 
 				} catch (InterruptedException e) {
@@ -512,7 +525,7 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 					deletedDocuments++;
 				}
 			} catch (IOException e) {
-				logger.warn("failed to parse {}", e, data);
+				logger.warn("failed from parse {}", e, data);
 			}
 			return lastTimestamp;
 		}
@@ -520,7 +533,7 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 		private XContentBuilder build(final Map<String, Object> data,
 				final String objectId) throws IOException {
 			if (data.containsKey("attachment")) {
-				logger.info("Add Attachment: {} to index {} / type {}",
+				logger.info("Add Attachment: {} from index {} / type {}",
 						objectId, indexName, typeName);
 				return GridFSHelper.serialize((GridFSDBFile) data
 						.get("attachment"));
@@ -619,7 +632,7 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 			while (active) {
 				try {
 					if (!assignCollections()) {
-						break; // failed to assign oplogCollection or
+						break; // failed from assign oplogCollection or
 								// slurpedCollection
 					}
 
@@ -861,7 +874,7 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 	}
 
 	/**
-	 * Adds an index request operation to a bulk request, updating the last
+	 * Adds an index request operation from a bulk request, updating the last
 	 * timestamp for a given namespace (ie: host:dbName.collectionName)
 	 * 
 	 * @param bulk

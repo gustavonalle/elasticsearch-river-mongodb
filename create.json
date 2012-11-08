@@ -1,0 +1,27 @@
+{
+	"type": "mongodb",
+	"mongodb": {
+		"servers": [{
+			host: "132.5.25.56",
+			port: "27017"
+		}],
+		"options": {
+			"secondary_read_preference": true
+		},
+		db: "synapse",
+		collection: "commodities",
+		gridfs: "false"
+	},
+	index: {
+		name: "commodities",
+		throttle_size: 2000
+	},
+	"field_mappings": [{
+    	    "generate": "suggest",
+    	    "from": ["upl","acl","dn"]
+    	},
+    	{
+           "generate": "ranking",
+           "from": "r"
+    	}]
+}

@@ -142,7 +142,7 @@ public abstract class RiverMongoDBTestAsbtract {
 		cr = mongoAdminDB.command(new BasicDBObject("replSetGetStatus", 1));
 		logger.info("replSetGetStatus: " + cr);
 
-		// Check replica set status before to proceed
+		// Check replica set status before from proceed
 		while (!isReplicaSetStarted(cr)) {
 			logger.debug("Waiting for 3 seconds...");
 			Thread.sleep(1000);
