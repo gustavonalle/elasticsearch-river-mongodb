@@ -45,10 +45,13 @@ public class FieldMapperTest {
 
     Map<String, Object> mapped = new FieldMapper(config).map(source);
 
-    assertEquals(mapped.keySet().size(), 3);
-    assertEquals(mapped.get("display"), "security");
+    assertEquals(mapped.keySet().size(), 6);
+    assertEquals(mapped.get("a"), 1);
+    assertEquals(mapped.get("b"), "string");
+    assertEquals(mapped.get("c"), "security");
     assertEquals(mapped.get("d"), 25);
     assertEqualsNoOrder((Object[])mapped.get("mapped"), new Object[]{1, "string"});
+    assertEquals(mapped.get("display"), "security");
 
   }
 
@@ -64,10 +67,48 @@ public class FieldMapperTest {
 
     Map<String, Object> mapped = new FieldMapper(config).map(source);
 
-    assertEquals(mapped.keySet().size(), 2);
+    assertEquals(mapped.keySet().size(), 3);
     assertNull(mapped.get("newField"));
     assertEquals(mapped.get("key1"), 1);
+    assertEquals(mapped.get("key2"), 2);
     assertEquals(mapped.get("newField2"), 2);
+
+  }
+
+
+  @Test
+  public void shouldIgnoreNullValuesInSource() throws Exception {
+    Map<String, Object> source = new HashMap<String, Object>();
+    source.put("key1", null);
+    source.put("key2", 2);
+
+    FieldMapperConfig config = new FieldMapperConfig();
+    config.generate("newField").from("key1","key2");
+
+    Map<String, Object> mapped = new FieldMapper(config).map(source);
+
+    assertEquals(mapped.keySet().size(), 2);
+    assertEquals(mapped.get("key2"), 2);
+    assertEquals(mapped.get("newField"), 2);
+
+
+  }
+
+  @Test
+  public void shouldIgnoreEmptyValuesInSource() throws Exception {
+    Map<String, Object> source = new HashMap<String, Object>();
+    source.put("key1", "");
+    source.put("key2", 2);
+
+    FieldMapperConfig config = new FieldMapperConfig();
+    config.generate("newField").from("key1","key2");
+
+    Map<String, Object> mapped = new FieldMapper(config).map(source);
+
+    assertEquals(mapped.keySet().size(), 2);
+    assertEquals(mapped.get("key2"),2);
+    assertEquals(mapped.get("newField"),2);
+
 
   }
 
@@ -95,6 +136,5 @@ public class FieldMapperTest {
 
 
   }
-
 
 }

@@ -13,9 +13,9 @@ public class FieldMapper {
     this.config = config;
   }
 
-
   public Map<String, Object> map(Map<String, Object> source) {
-    HashMap<String, Object> mapped = new HashMap<String, Object>();
+    removeNullsAndEmpties(source);
+    HashMap<String, Object> mapped = new HashMap<String, Object>(source);
     for (Map.Entry<String, Object> entry : source.entrySet()) {
       String destination = config.getMappingForField(entry.getKey());
       if (destination == null) {
@@ -23,14 +23,24 @@ public class FieldMapper {
       } else {
         mapped.put(destination, combine(mapped.get(destination), entry.getValue()));
       }
+
     }
     return mapped;
 
   }
 
+
+  private void removeNullsAndEmpties(Map<String, Object> map) {
+    for (Map.Entry<String, Object> entry : map.entrySet()) {
+      if (entry.getValue() == null || entry.getValue().toString().isEmpty()) {
+        map.remove(entry.getKey());
+      }
+    }
+  }
+
   private Object combine(Object existing, Object newValue) {
-    if (existing == null) return newValue;
-    if (newValue == null) return existing;
+    if (existing == null || existing.toString().isEmpty()) return newValue;
+    if (newValue == null || newValue.toString().isEmpty()) return existing;
     if (existing instanceof Object[]) {
       Object[] array = (Object[]) existing;
       int length = array.length;
