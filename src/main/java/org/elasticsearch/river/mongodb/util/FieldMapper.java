@@ -18,12 +18,10 @@ public class FieldMapper {
     HashMap<String, Object> mapped = new HashMap<String, Object>(source);
     for (Map.Entry<String, Object> entry : source.entrySet()) {
       String destination = config.getMappingForField(entry.getKey());
-      if (destination == null) {
-        mapped.put(entry.getKey(), entry.getValue());
-      } else {
+      if (destination != null) {
         mapped.put(destination, combine(mapped.get(destination), entry.getValue()));
+        if(!config.isKeepOriginal(destination)) mapped.remove(entry.getKey());
       }
-
     }
     return mapped;
 
@@ -52,4 +50,8 @@ public class FieldMapper {
     }
   }
 
+  @Override
+  public String toString() {
+    return config.toString();
+  }
 }

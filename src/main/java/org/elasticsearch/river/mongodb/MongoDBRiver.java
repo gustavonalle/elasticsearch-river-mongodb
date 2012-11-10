@@ -361,9 +361,9 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 					server.getHost(), server.getPort());
 		}
 		logger.info(
-				"starting mongodb stream. options: secondaryreadpreference [{}], throttlesize [{}], gridfs [{}], filter [{}], db [{}], indexing from [{}]/[{}]",
+				"starting mongodb stream. options: secondaryreadpreference [{}], throttlesize [{}], gridfs [{}], filter [{}], db [{}], indexing from [{}]/[{}], mapping config [{}]",
 				mongoSecondaryReadPreference, throttleSize, mongoGridFS,
-				mongoFilter, mongoDb, indexName, typeName);
+				mongoFilter, mongoDb, indexName, typeName, fieldMapper);
 		try {
 			client.admin().indices().prepareCreate(indexName).execute()
 					.actionGet();

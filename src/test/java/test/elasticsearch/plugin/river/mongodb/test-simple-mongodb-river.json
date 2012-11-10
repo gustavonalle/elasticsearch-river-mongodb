@@ -26,10 +26,12 @@
 	},
 	"field_mappings": [{
 	    "generate": "suggest",
-	    "from": ["upl","acl","dn"]
+	    "from": ["upl","acl","dn"],
+	    "keep_source": true
 	},
 	{
        "generate": "ranking",
-       "from": "r"
+       "from": "r",
+	   "keep_source": false
 	}]
 }
