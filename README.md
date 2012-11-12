@@ -1,3 +1,63 @@
+This is a forked MongoDB River Plugin for ElasticSearch, adding the possibility of specifying field mappings between mongodb documents
+and elasticsearch ones.
+
+Example, with the following mapping:
+
+	curl -XPUT 'http://localhost:9200/_river/mongodb/_meta' -d '{
+		"type": "mongodb",
+		"mongodb": {
+			"db": "testmongo",
+			"collection": "person"
+		},
+		"index": {
+			"name": "mongoindex",
+			"type": "person"
+		},
+		"field_mappings": [{
+			"generate": "FullName",
+			"from": ["f","l"],
+			"keep_source": true
+		},
+		{
+			"generate": "age",
+			"from": "a",
+			"keep_source": false
+		}]
+	}'
+
+
+A new (generated) field called "FullName" would be present in the Elastic Search document, and it'd composed of both "f" and "l" fields,
+as an array containing all values. Since "keep_source" is true for this mapping, the original field "f" and "l" would also be present.
+
+Also, a new field called "age" would be present in elastic search with the value of "a", and the the "a" field would not be present.
+
+
+For a document in mongodb document like this:
+
+	PRIMARY> db.person.findOne()
+	{
+		"_id" : 1,
+		"f" : "David",
+		"l" : "Cameron",
+		"a" : 45
+	}
+
+The Elastic Search equivalent document would be:
+
+	_source: {
+    		FullName: [
+        		"David",
+        		"Cameron",
+    		],
+    		f: "David",
+    		l: "Cameron",
+    		age: 45
+	}
+
+
+Following is the original documentation of the plugin:
+
+
 MongoDB River Plugin for ElasticSearch
 
     ---------------------------------------------------------
