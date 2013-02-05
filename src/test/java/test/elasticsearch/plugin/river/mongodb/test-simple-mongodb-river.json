@@ -22,6 +22,7 @@
 	},
 	index: {
 		name: "personindex",
+		type: "persontype",
 		throttle_size: 2000
 	},
 	"field_mappings": [{

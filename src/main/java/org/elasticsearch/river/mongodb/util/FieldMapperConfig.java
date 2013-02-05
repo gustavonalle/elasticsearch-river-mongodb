@@ -1,13 +1,17 @@
 package org.elasticsearch.river.mongodb.util;
 
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class FieldMapperConfig {
 
-  private Map<String, String> fieldMaps = new HashMap<String, String>();
+
+  private ListMultimap<String, String> fieldMaps = ArrayListMultimap.create();
   private Map<String, Boolean> keepSourceMap = new HashMap<String, Boolean>();
 
   private String fieldName;
@@ -69,8 +73,12 @@ public class FieldMapperConfig {
 
   }
 
-  public String getMappingForField(String fieldName) {
+  public List<String> getMappingForField(String fieldName) {
     return fieldMaps.get(fieldName);
+  }
+
+  public ListMultimap<String, String> getAllFieldMappings() {
+    return fieldMaps;
   }
 
   public boolean isKeepOriginal(String fieldName) {
@@ -80,7 +88,7 @@ public class FieldMapperConfig {
   @Override
   public String toString() {
     StringBuffer buffer = new StringBuffer();
-    for (Map.Entry<String, String> entry : fieldMaps.entrySet()) {
+    for (Map.Entry<String, String> entry : fieldMaps.entries()) {
       buffer.append(entry.getKey() + "->" + entry.getValue() + "[keep orig.:" + keepSourceMap.get(entry.getValue()) + "],");
     }
     return buffer.toString();

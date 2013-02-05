@@ -1,15 +1,14 @@
 package test.elasticsearch.plugin.river.mongodb;
 
 
+import com.mongodb.BasicDBObject;
 import org.elasticsearch.river.mongodb.util.FieldMapper;
 import org.elasticsearch.river.mongodb.util.FieldMapperConfig;
 import org.testng.annotations.Test;
 
 import java.util.*;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertEqualsNoOrder;
-import static org.testng.Assert.assertNull;
+import static org.testng.Assert.*;
 
 public class FieldMapperTest {
 
@@ -43,7 +42,7 @@ public class FieldMapperTest {
     config.generate("123combined").from("field1", "field2", "field3").keepOriginal(true).create();
     config.generate("4renamed").from("field4").keepOriginal(false).create();
 
-    Map<String, Object> mapped = new FieldMapper(config.create()).map(source);
+    Map<String, Object> mapped = new FieldMapper(config).map(source);
 
     assertEquals(mapped.keySet().size(), 5);
     assertEquals(mapped.get("field1"), 1);
@@ -125,19 +124,60 @@ public class FieldMapperTest {
     field2.put("from", "r");
     field2.put("keep_source", true);
 
+    Map<String, Object> field3 = new HashMap<String, Object>();
+    field3.put("generate", "search");
+    field3.put("from", Arrays.asList("field1", "field2", "field3"));
+    field3.put("keep_source", false);
+
     settings.add(field1);
     settings.add(field2);
+    settings.add(field3);
 
     FieldMapperConfig fieldMapperConfig = new FieldMapperConfig(settings);
 
-    assertEquals(fieldMapperConfig.getMappingForField("r"), "ranking");
-    assertEquals(fieldMapperConfig.getMappingForField("field1"), "suggest");
-    assertEquals(fieldMapperConfig.getMappingForField("field2"), "suggest");
-    assertEquals(fieldMapperConfig.getMappingForField("field3"), "suggest");
+    assertEquals(fieldMapperConfig.getMappingForField("r"), Arrays.asList("ranking"));
+    assertEquals(fieldMapperConfig.getMappingForField("field1"), Arrays.asList("suggest", "search"));
+    assertEquals(fieldMapperConfig.getMappingForField("field2"), Arrays.asList("suggest", "search"));
+    assertEquals(fieldMapperConfig.getMappingForField("field3"), Arrays.asList("suggest", "search"));
     assertEquals(fieldMapperConfig.isKeepOriginal("generate"), false);
     assertEquals(fieldMapperConfig.isKeepOriginal("ranking"), true);
 
 
   }
 
+  @Test
+  public void shouldSupportNestedFieldInSource() throws Exception {
+
+    Map<String, Object> source = new HashMap<String, Object>();
+    source.put("property1", Integer.valueOf(26));
+    source.put("property2", new BasicDBObject("nested", "nestedValue"));
+    source.put("property3", new BasicDBObject("property3", new BasicDBObject("property3", "deepNestedValue")));
+
+    FieldMapperConfig fieldMapperConfig = new FieldMapperConfig();
+    fieldMapperConfig.generate("search").from("property1", "property2.nested", "property3.property3.property3");
+
+    Map<String, Object> mapped = new FieldMapper(fieldMapperConfig.create()).map(source);
+
+    assertEqualsNoOrder((Object[]) mapped.get("search"), new Object[]{26, "nestedValue", "deepNestedValue"});
+
+  }
+
+  @Test
+  public void shouldGenerateDifferentFieldFromSameFields() throws Exception {
+
+    Map<String, Object> source = new HashMap<String, Object>();
+    source.put("field1", "value1");
+    source.put("field2", "value2");
+    source.put("field3", "value3");
+
+    FieldMapperConfig fieldMapperConfig = new FieldMapperConfig();
+    fieldMapperConfig.generate("search").from("field1", "field2", "field3").keepOriginal(true).create();
+    fieldMapperConfig.generate("suggest").from("field1", "field2", "field3").keepOriginal(true).create();
+
+    Map<String, Object> mapped = new FieldMapper(fieldMapperConfig).map(source);
+
+    assertEqualsNoOrder((Object[]) mapped.get("suggest"), new Object[]{"value1", "value2", "value3"});
+    assertEqualsNoOrder((Object[]) mapped.get("search"), new Object[]{"value1", "value2", "value3"});
+
+  }
 }

@@ -202,7 +202,7 @@ public abstract class RiverMongoDBTestAsbtract {
 
         if (!initialSettings.v2().pluginsFile().exists()) {
             FileSystemUtils.mkdirs(initialSettings.v2().pluginsFile());
-            pluginManager.downloadAndExtract(MAPPER_ATTACHMENT_PLUGIN_NAME);
+            pluginManager.downloadAndExtract(MAPPER_ATTACHMENT_PLUGIN_NAME, false);
         } else {
         	logger.info("Plugin {} has been already installed.", MAPPER_ATTACHMENT_PLUGIN_NAME);
         }

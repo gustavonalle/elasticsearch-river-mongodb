@@ -1,9 +1,12 @@
 package org.elasticsearch.river.mongodb.util;
 
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import com.google.common.collect.ListMultimap;
+import org.apache.commons.jexl2.Expression;
+import org.apache.commons.jexl2.JexlEngine;
+import org.apache.commons.jexl2.MapContext;
+
+import java.util.*;
 
 public class FieldMapper {
 
@@ -15,12 +18,20 @@ public class FieldMapper {
 
   public Map<String, Object> map(Map<String, Object> source) {
     removeNullsAndEmpties(source);
+    ListMultimap<String, String> fieldMaps = config.getAllFieldMappings();
+    JexlEngine jexlEngine = new JexlEngine();
+    MapContext mapContext = new MapContext(source);
     HashMap<String, Object> mapped = new HashMap<String, Object>(source);
-    for (Map.Entry<String, Object> entry : source.entrySet()) {
-      String destination = config.getMappingForField(entry.getKey());
-      if (destination != null) {
-        mapped.put(destination, combine(mapped.get(destination), entry.getValue()));
-        if(!config.isKeepOriginal(destination)) mapped.remove(entry.getKey());
+    for (String from : fieldMaps.asMap().keySet()) {
+      List<String> to = fieldMaps.get(from);
+      Expression expression = jexlEngine.createExpression(from);
+      Object newValue = expression.evaluate(mapContext);
+      for (String toField : to) {
+        Object existingValue = mapped.get(toField);
+        mapped.put(toField, combine(existingValue, newValue));
+        if (!config.isKeepOriginal(toField)) {
+          mapped.remove(from);
+        }
       }
     }
     return mapped;
