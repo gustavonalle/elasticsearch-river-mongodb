@@ -74,41 +74,25 @@ public class FieldMapperTest {
   }
 
 
+
   @Test
-  public void shouldIgnoreNullValuesInSource() throws Exception {
+  public void shouldIgnoreInexistentFieldOnSource() throws Exception {
     Map<String, Object> source = new HashMap<String, Object>();
-    source.put("key1", null);
-    source.put("key2", 2);
+    source.put("key1", "val1");
+    source.put("key2", "val2");
 
     FieldMapperConfig config = new FieldMapperConfig();
-    config.generate("newField").from("key1", "key2");
+    config.generate("newField").from("key1", "key3");
 
     Map<String, Object> mapped = new FieldMapper(config.create()).map(source);
 
-    assertEquals(mapped.keySet().size(), 2);
-    assertEquals(mapped.get("key2"), 2);
-    assertEquals(mapped.get("newField"), 2);
+    assertEquals(mapped.keySet().size(), 3);
+    assertEquals(mapped.get("key2"), "val2");
+    assertEquals(mapped.get("newField"), "val1");
 
 
   }
 
-  @Test
-  public void shouldIgnoreEmptyValuesInSource() throws Exception {
-    Map<String, Object> source = new HashMap<String, Object>();
-    source.put("key1", "");
-    source.put("key2", 2);
-
-    FieldMapperConfig config = new FieldMapperConfig();
-    config.generate("newField").from("key1", "key2");
-
-    Map<String, Object> mapped = new FieldMapper(config.create()).map(source);
-
-    assertEquals(mapped.keySet().size(), 2);
-    assertEquals(mapped.get("key2"), 2);
-    assertEquals(mapped.get("newField"), 2);
-
-
-  }
 
   @Test
   public void shouldBuildFromConfig() {

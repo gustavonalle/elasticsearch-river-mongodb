@@ -122,10 +122,12 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 	public final static String OPLOG_OBJECT = "o";
 	public final static String OPLOG_UPDATE = "o2";
 	public final static String OPLOG_OPERATION = "op";
+	public final static String DATA_OPLOG_OPERATION = "data_op";
 	public final static String OPLOG_UPDATE_OPERATION = "u";
 	public final static String OPLOG_INSERT_OPERATION = "i";
 	public final static String OPLOG_DELETE_OPERATION = "d";
 	public final static String OPLOG_TIMESTAMP = "ts";
+	public final static String DATA_OPLOG_TIMESTAMP = "data_ts";
 
 	protected final Client client;
 
@@ -221,7 +223,7 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 						.get(OPTIONS_FIELD);
 				mongoSecondaryReadPreference = XContentMapValues
 						.nodeBooleanValue(mongoOptionsSettings
-								.get(SECONDARY_READ_PREFERENCE_FIELD), false);
+                .get(SECONDARY_READ_PREFERENCE_FIELD), false);
 			} else {
 				mongoSecondaryReadPreference = false;
 			}
@@ -403,8 +405,26 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 		indexerThread = EsExecutors.daemonThreadFactory(
 				settings.globalSettings(), "mongodb_river_indexer").newThread(
 				new Indexer());
+    indexerThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+      @Override
+      public void uncaughtException(Thread t, Throwable e) {
+        logger.error("Cause of death: " + e.getClass());
+        logger.error("Thread " + t.getName() + " died, exception was: ", e);
+        e.printStackTrace();
+      }
+    });
+
+    tailerThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+      @Override
+      public void uncaughtException(Thread t, Throwable e) {
+        logger.error("Cause of death: " + e.getClass());
+        logger.error("Thread " + t.getName() + " died, exception was: ", e);
+        e.printStackTrace();
+      }
+    });
+
 		indexerThread.start();
-		tailerThread.start();
+    tailerThread.start();
 	}
 
 	@Override
@@ -424,9 +444,10 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
         private int insertedDocuments = 0;
         private int updatedDocuments = 0;
         private StopWatch sw;
-        
+
         @Override
 		public void run() {
+     try{
 			while (active) {
 				sw = new StopWatch().start();
 				deletedDocuments = 0;
@@ -438,12 +459,11 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 
 					// 1. Attempt from fill as much of the bulk request as
 					// possible
-					Map<String, Object> mongodata = stream.take();
-          Map<String, Object> data = fieldMapper.map(mongodata);
-          lastTimestamp = updateBulkRequest(bulk, data);
+          Map<String, Object> data = stream.take();
+          lastTimestamp = updateBulkRequest(bulk, fieldMapper.map(data));
 					while ((data = stream.poll(bulkTimeout.millis(),
-							MILLISECONDS)) != null) {
-						lastTimestamp = updateBulkRequest(bulk, data);
+              MILLISECONDS)) != null) {
+						lastTimestamp = updateBulkRequest(bulk, fieldMapper.map(data));
 						if (bulk.numberOfActions() >= bulkSize) {
 							break;
 						}
@@ -473,7 +493,12 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 					}
 				}
 				logStatistics();
-			}
+      }
+     } catch(Throwable t) {
+       t.printStackTrace();
+       logger.error("Throwable:" + t.getClass());
+       logger.error("Stack:",t);
+     }
 		}
 
 		private BSONTimestamp updateBulkRequest(final BulkRequestBuilder bulk,
@@ -485,22 +510,22 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 				return null;
 			}
 			BSONTimestamp lastTimestamp = (BSONTimestamp) data
-					.get(OPLOG_TIMESTAMP);
-			String operation = data.get(OPLOG_OPERATION).toString();
+					.get(DATA_OPLOG_TIMESTAMP);
+			String operation = data.get(DATA_OPLOG_OPERATION).toString();
 			String objectId = data.get(MONGODB_ID_FIELD).toString();
-			data.remove(OPLOG_TIMESTAMP);
-			data.remove(OPLOG_OPERATION);
-			if (logger.isDebugEnabled()) {
-				logger.debug("updateBulkRequest for id: [{}], operation: [{}]",
-						objectId, operation);
+			data.remove(DATA_OPLOG_TIMESTAMP);
+			data.remove(DATA_OPLOG_OPERATION);
+			if (logger.isInfoEnabled()) {
+				logger.info("updateBulkRequest for id: [{}], operation: [{}]",
+            objectId, operation);
 			}
 			try {
 				if (OPLOG_INSERT_OPERATION.equals(operation)) {
 					if (logger.isDebugEnabled()) {
-						logger.debug(
-								"Insert operation - id: {} - contains attachment: {}",
-								operation, objectId,
-								data.containsKey("attachment"));
+						logger.info(
+                "Insert operation - id: {} - contains attachment: {}",
+                operation, objectId,
+                data.containsKey("attachment"));
 					}
 					bulk.add(indexRequest(indexName).type(typeName)
 							.id(objectId).source(build(data, objectId)));
@@ -508,9 +533,9 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 				}
 				if (OPLOG_UPDATE_OPERATION.equals(operation)) {
 					if (logger.isDebugEnabled()) {
-						logger.debug(
-								"Update operation - id: {} - contains attachment: {}",
-								objectId, data.containsKey("attachment"));
+						logger.info(
+                "Update operation - id: {} - contains attachment: {}",
+                objectId, data.containsKey("attachment"));
 					}
 					bulk.add(new DeleteRequest(indexName, typeName, objectId));
 					bulk.add(indexRequest(indexName).type(typeName)
@@ -541,7 +566,7 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 				return XContentFactory.jsonBuilder().map(data);
 			}
 		}
-		
+
 		private void logStatistics() {
             long totalDocuments = deletedDocuments + insertedDocuments;
             long totalTimeInSeconds = sw.stop().totalTime().seconds();
@@ -819,8 +844,8 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 						"addToStream - operation [{}], currentTimestamp [{}], data [{}]",
 						operation, currentTimestamp, data);
 			}
-			data.put(OPLOG_TIMESTAMP, currentTimestamp);
-			data.put(OPLOG_OPERATION, operation);
+			data.put(DATA_OPLOG_TIMESTAMP, currentTimestamp);
+			data.put(DATA_OPLOG_OPERATION, operation);
 
 			// stream.add(data);
 			try {
@@ -876,7 +901,7 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 	/**
 	 * Adds an index request operation from a bulk request, updating the last
 	 * timestamp for a given namespace (ie: host:dbName.collectionName)
-	 * 
+	 *
 	 * @param bulk
 	 */
 	private void updateLastTimestamp(final String namespace,
@@ -886,8 +911,8 @@ public class MongoDBRiver extends AbstractRiverComponent implements River {
 					.type(riverName.getName())
 					.id(namespace)
 					.source(jsonBuilder().startObject().startObject(ROOT_NAME)
-							.field(LAST_TIMESTAMP_FIELD, JSON.serialize(time))
-							.endObject().endObject()));
+              .field(LAST_TIMESTAMP_FIELD, JSON.serialize(time))
+              .endObject().endObject()));
 		} catch (IOException e) {
 			logger.error("error updating last timestamp for namespace {}",
 					namespace);

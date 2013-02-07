@@ -5,10 +5,14 @@ import com.google.common.collect.ListMultimap;
 import org.apache.commons.jexl2.Expression;
 import org.apache.commons.jexl2.JexlEngine;
 import org.apache.commons.jexl2.MapContext;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 
 import java.util.*;
 
 public class FieldMapper {
+
+  private final ESLogger logger = ESLoggerFactory.getLogger(this.getClass().getName());
 
   private final FieldMapperConfig config;
 
@@ -17,11 +21,11 @@ public class FieldMapper {
   }
 
   public Map<String, Object> map(Map<String, Object> source) {
-    removeNullsAndEmpties(source);
+    Map sourceCopy = new HashMap(source);
     ListMultimap<String, String> fieldMaps = config.getAllFieldMappings();
     JexlEngine jexlEngine = new JexlEngine();
-    MapContext mapContext = new MapContext(source);
-    HashMap<String, Object> mapped = new HashMap<String, Object>(source);
+    MapContext mapContext = new MapContext(sourceCopy);
+    HashMap<String, Object> mapped = new HashMap<String, Object>(sourceCopy);
     for (String from : fieldMaps.asMap().keySet()) {
       List<String> to = fieldMaps.get(from);
       Expression expression = jexlEngine.createExpression(from);
@@ -34,18 +38,11 @@ public class FieldMapper {
         }
       }
     }
+    logger.info("Mapped from {}, to {}", sourceCopy, mapped);
     return mapped;
 
   }
 
-
-  private void removeNullsAndEmpties(Map<String, Object> map) {
-    for (Map.Entry<String, Object> entry : map.entrySet()) {
-      if (entry.getValue() == null || entry.getValue().toString().isEmpty()) {
-        map.remove(entry.getKey());
-      }
-    }
-  }
 
   private Object combine(Object existing, Object newValue) {
     if (existing == null || existing.toString().isEmpty()) return newValue;

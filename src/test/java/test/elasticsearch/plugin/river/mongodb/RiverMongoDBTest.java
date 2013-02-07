@@ -1,18 +1,27 @@
 package test.elasticsearch.plugin.river.mongodb;
 
 import static org.elasticsearch.client.Requests.countRequest;
+import static org.elasticsearch.client.Requests.getRequest;
+import static org.elasticsearch.client.Requests.searchRequest;
 import static org.elasticsearch.common.io.Streams.copyToStringFromClasspath;
 import static org.elasticsearch.index.query.QueryBuilders.fieldQuery;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertEqualsNoOrder;
+import static org.testng.Assert.assertTrue;
 
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.count.CountResponse;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.SearchHitField;
+import org.hamcrest.Matcher;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -25,6 +34,10 @@ import com.mongodb.DBObject;
 import com.mongodb.WriteConcern;
 import com.mongodb.WriteResult;
 import com.mongodb.util.JSON;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 @Test
 public class RiverMongoDBTest extends RiverMongoDBTestAsbtract {
@@ -62,20 +75,6 @@ public class RiverMongoDBTest extends RiverMongoDBTestAsbtract {
 	}
 
 	@Test
-	public void mongoCRUDTest() {
-		logger.info("Start mongoCRUDTest");
-		DBObject dbObject = new BasicDBObject("count", "-1");
-    DBObject nestedObject = new BasicDBObject("pt","contador");
-    dbObject.put("i18n",nestedObject);
-		mongoCollection.insert(dbObject, WriteConcern.REPLICAS_SAFE);
-		logger.debug("New object inserted: {}", dbObject.toString());
-		DBObject dbObject2 = mongoCollection.findOne(new BasicDBObject("_id",
-				dbObject.get("_id")));
-		Assert.assertEquals(dbObject.get("count"), dbObject2.get("count"));
-		mongoCollection.remove(dbObject, WriteConcern.REPLICAS_SAFE);
-	}
-
-	@Test
 	public void simpleBSONObject() throws Throwable {
 		logger.debug("Start simpleBSONObject");
 		try {
@@ -92,23 +91,31 @@ public class RiverMongoDBTest extends RiverMongoDBTestAsbtract {
 					.admin().indices()
 					.exists(new IndicesExistsRequest(INDEX_NAME));
 			assertThat(response.actionGet().isExists(), equalTo(true));
-			CountResponse countResponse = getNode()
-					.client()
-					.count(countRequest(INDEX_NAME).query(
-							fieldQuery("name", "Richard"))).actionGet();
-			logger.info("Document count: {}", countResponse.count());
-			countResponse = getNode()
-					.client()
-					.count(countRequest(INDEX_NAME)
-							.query(fieldQuery("_id", id))).actionGet();
-			assertThat(countResponse.count(), equalTo(1l));
+			Thread.sleep(5000);
+			SearchResponse searchResponse = getNode()
+          .client().prepareSearch(INDEX_NAME).setQuery(fieldQuery("name", "Richard")).execute().actionGet();
+			logger.info("Document count: {}", searchResponse.hits().totalHits());
 
-			mongoCollection.remove(dbObject, WriteConcern.REPLICAS_SAFE);
+      SearchHit hit = searchResponse.getHits().getAt(0);
 
-			Thread.sleep(1000);
+      Map<String,Object> sourceDoc = hit.getSource();
+      assertThat(searchResponse.hits().totalHits(), equalTo(1l));
+
+      List<Object> searchValues = (List<Object>) sourceDoc.get("search");
+      List<Object> search2Values = (List<Object>) sourceDoc.get("search2");
+      assertEquals(searchValues.size(),2);
+      assertEquals(search2Values.size(),2);
+      assertTrue(searchValues.containsAll(Arrays.asList("English","My ticker symbol")));
+      assertTrue(search2Values.containsAll(Arrays.asList("English","My ticker symbol")));
+			//assertTrue(sourceDoc.get("op") == null);
+			//assertTrue(sourceDoc.get("ts") == null);
+
+      mongoCollection.remove(dbObject, WriteConcern.REPLICAS_SAFE);
+
+			Thread.sleep(5000);
 			getNode().client().admin().indices()
 					.refresh(new RefreshRequest(INDEX_NAME));
-			countResponse = getNode()
+      CountResponse countResponse = getNode()
 					.client()
 					.count(countRequest(INDEX_NAME)
 							.query(fieldQuery("_id", id))).actionGet();

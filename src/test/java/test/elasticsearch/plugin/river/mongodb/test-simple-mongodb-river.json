@@ -26,13 +26,13 @@
 		throttle_size: 2000
 	},
 	"field_mappings": [{
-	    "generate": "suggest",
-	    "from": ["upl","acl","dn"],
+	    "generate": "search",
+	    "from": ["description.en","op","ts"],
 	    "keep_source": true
 	},
 	{
-       "generate": "ranking",
-       "from": "r",
+       "generate": "search2",
+       "from": ["description.en","op","ts"],
 	   "keep_source": false
 	}]
 }

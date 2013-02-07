@@ -1,4 +1,9 @@
 {
-	name: "Richard",
-	score: 100
+    "name": "Richard",
+    "score": 100,
+    "ts": "My ticker symbol",
+    "description": {
+        "en": "English",
+        "pt": "Portugues"
+    }
 }
